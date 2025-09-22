@@ -1,3 +1,8 @@
+# Note: Gradio 기반 실행 진입점
+# Fixme: 현재 이 코드는 KnowOrNot 리포지토리에서 가져온 것으로, 이 프로젝트에 맞춰서 수정할 것.
+
+
+
 import os
 import time
 import json

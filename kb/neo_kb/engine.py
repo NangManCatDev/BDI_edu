@@ -1,8 +1,9 @@
+# Note: 해당 모듈은 NEO엔진을 실행하는 모듈임.
+
+
 import os
 import sys
 from ctypes import cdll, c_char_p, c_int, create_string_buffer
-
-# Note: 해당 모듈은 NEO엔진을 실행하는 모듈임.
 
 class NEOExecutor:
     def __init__(self):

@@ -1,0 +1,1 @@
+# Note: Belief 관리 모듈
