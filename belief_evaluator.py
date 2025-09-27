@@ -1,50 +1,44 @@
-"""
-belief_evaluator.py
--------------------
-Belief 모듈 단독 실행/테스트 스크립트
-"""
+from belief.knowledge_base import build_kb
+from belief.state_manager import StateManager
+from pylo.language.lp import Atom, c_const, c_var
 
-from belief import Context, StateManager, PrologEngine
-import os
-
+def pretty_results(results):
+    return [{k: v for k, v in r.items()} if r else {} for r in results]
 
 def main():
-    print("=== Belief Evaluator 실행 ===")
+    eng = build_kb()
+    sm = StateManager()
 
-    # -------------------------
-    # Context 테스트
-    # -------------------------
-    context = Context()
-    print("[Context] 초기값:", context.get_context())
-    context.update_context("subject", "discrete_math")
-    print("[Context] 업데이트 후:", context.get_context())
+    print("=== Belief Query Examples ===")
 
-    # -------------------------
-    # StateManager 테스트
-    # -------------------------
-    state_manager = StateManager()
-    state = state_manager.load_initial_state()
-    print("[State] 초기 상태:", state)
+    # 1) 삼국통일 조회
+    q1 = Atom(eng.predicates["event"], [c_var("X"), c_const("'668'"), c_var("Y")])
+    res1 = eng.query(q1)
+    print("event(X, '668', Y):", pretty_results(res1))
 
-    state_manager.update_state("progress", 1)
-    print("[State] 업데이트 후:", state_manager.get_state())
+    # 최근 학습 주제 갱신
+    if res1:
+        sm.set_last_topic(res1[0].get("X"))  # '삼국통일'
 
-    # -------------------------
-    # Prolog KB 테스트
-    # -------------------------
-    kb_path = os.path.join("belief", "knowledge_base.pl")
-    prolog_engine = PrologEngine(kb_path)
+    # 2) 세종 조회
+    q2 = Atom(eng.predicates["person"], [c_const("'세종'"), c_var("B"), c_var("D"), c_var("R")])
+    res2 = eng.query(q2)
+    print("person('세종', B, D, R):", pretty_results(res2))
 
-    print("\n[Prolog] example/2 질의 결과:")
-    for sol in prolog_engine.query("example(Q, A)"):
-        print(f"  Q: {sol['Q']}, A: {sol['A']}")
+    if res2:
+        sm.set_last_topic("세종")
 
-    print("\n[Prolog] definition/2 질의 결과:")
-    for sol in prolog_engine.query("definition(element_of, Def)."):
-        print("  element_of 정의:", sol["Def"])
+    # 3) 동학농민운동 원인 조회
+    q3 = Atom(eng.predicates["cause"], [c_const("'동학농민운동'"), c_var("X")])
+    res3 = eng.query(q3)
+    print("cause('동학농민운동', X):", pretty_results(res3))
 
-    print("\n=== Belief Evaluator 완료 ===")
+    if res3:
+        sm.set_last_topic("동학농민운동")
 
+    # === 최종 상태 출력 ===
+    print("\n=== Current State ===")
+    print(sm.all())
 
 if __name__ == "__main__":
     main()

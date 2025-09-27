@@ -1,103 +1,85 @@
-"""
-BDI-EDU 실행 엔트리포인트
---------------------------------
-Belief → Desire → Intention → Interface → Agent
-사이클을 한 번 돌려보는 샘플 파이프라인.
-"""
-
-# === Belief (지식/상태) ===
-from belief.context_provider import Context
 from belief.state_manager import StateManager
+from belief.knowledge_base import build_kb
 
-# === Desire (목표/커리큘럼) ===
 from desire.curriculum import Curriculum
 from desire.goal_manager import GoalManager
 from desire.progress_tracker import ProgressTracker
 
-# === Intention (계획/실행) ===
 from intention.planner import Planner
 from intention.executor import Executor
 from intention.feedback_agent import FeedbackAgent
 
-# === Interface (LLM, KQML ↔ NL 변환) ===
-from interface.llm_connector import LLMConnector
-from interface.nl2kqml import NL2KQML
-from interface.kqml2nl import KQML2NL
-from interface.chat_ui import ChatUI
-
-# === Agents (JaCaMo 연동용) ===
-# 실제 실행은 MAS 환경 필요. 여기서는 단순 placeholder.
-# from agents.tutor_agent import TutorAgent
-
 
 def main():
-    print("=== [BDI-EDU: AI Tutor Cycle] 시작 ===")
+    print("=== BDI Orchestrator ===\n")
 
-    # -------------------------
-    # 1) Belief: 초기 상태 로딩
-    # -------------------------
-    context = Context()
-    state_manager = StateManager()
-    state = state_manager.load_initial_state()
-    print("[Belief] 초기 상태:", state)
+    # ------------------------
+    # Belief 단계
+    # ------------------------
+    state = StateManager()
+    kb = build_kb()
 
-    # -------------------------
-    # 2) Desire: 목표 설정
-    # -------------------------
+    print("[Belief 상태 초기화]")
+    print(state.all(), "\n")
+
+    # ------------------------
+    # Desire 단계
+    # ------------------------
     curriculum = Curriculum()
+    curriculum.add("short_term", "삼국 통일")
+    curriculum.add("mid_term", "조선 건국")
+
     goal_manager = GoalManager()
-    progress_tracker = ProgressTracker()
+    goal_manager.add("삼국 통일 학습", priority=2)
+    goal_manager.add("조선 건국 이해", priority=1)
 
-    learning_goal = goal_manager.define_goal("수학_집합론_기초")
-    curriculum_plan = curriculum.get_curriculum(learning_goal)
-    progress_tracker.start_tracking(learning_goal)
+    tracker = ProgressTracker(state_manager=state)
+    tracker.set_progress("삼국 통일", "done")   # 예: 삼국 통일 학습 완료
 
-    print("[Desire] 학습 목표:", learning_goal)
-    print("[Desire] 커리큘럼:", curriculum_plan)
+    print("[Curriculum]")
+    print(curriculum.show(), "\n")
 
-    # -------------------------
-    # 3) Intention: 계획 수립 & 실행
-    # -------------------------
-    planner = Planner()
-    executor = Executor()
-    feedback = FeedbackAgent()
+    print("[목표 리스트]")
+    print(goal_manager.show(), "\n")
 
-    plan = planner.create_plan(learning_goal, state)
-    print("[Intention] 생성된 계획:", plan)
+    highest_goal = goal_manager.get_highest_priority()
+    print("[우선순위가 가장 높은 목표]")
+    print(highest_goal, "\n")
 
-    result = executor.execute(plan)
-    print("[Intention] 실행 결과:", result)
+    # Belief 갱신 (last_topic)
+    if highest_goal:
+        state.set_last_topic(highest_goal["goal"])
 
-    feedback_msg = feedback.evaluate(result)
-    print("[Intention] 피드백:", feedback_msg)
+    print("[Belief 상태 업데이트]")
+    print(state.all(), "\n")
 
-    # -------------------------
-    # 4) Interface: 사용자 ↔ 에이전트 대화
-    # -------------------------
-    llm = LLMConnector()
-    nl2kqml = NL2KQML(llm)
-    kqml2nl = KQML2NL(llm)
-    chat = ChatUI()
+    # ------------------------
+    # Intention 단계
+    # ------------------------
+    if highest_goal:
+        goal = highest_goal["goal"]
 
-    user_msg = "집합의 원소란 무엇인가?"
-    print("\n[Interface] 사용자 질문:", user_msg)
+        planner = Planner()
+        plan = planner.make_plan(goal)
 
-    kqml_msg = nl2kqml.translate(user_msg, context)
-    print("[Interface] NL → KQML:", kqml_msg)
+        print("[계획 수립]")
+        for step in plan:
+            print("-", step)
+        print()
 
-    # (여기서 KQML 메시지가 Tutor Agent로 전달된다고 가정)
-    agent_reply_kqml = "(tell :content (element-of ?x ?set))"
-    agent_reply_nl = kqml2nl.translate(agent_reply_kqml, context)
+        executor = Executor()
+        results = executor.execute(plan)
 
-    chat.display(agent_reply_nl)
+        print("[실행 결과]")
+        for r in results:
+            print("-", r)
+        print()
 
-    # -------------------------
-    # 5) Agent (Placeholder)
-    # -------------------------
-    # tutor_agent = TutorAgent()
-    # tutor_agent.handle_message(kqml_msg)
+        feedback_agent = FeedbackAgent()
+        feedback = feedback_agent.evaluate(results)
 
-    print("\n=== [BDI-EDU: Cycle 완료] ===")
+        print("[피드백]")
+        print(feedback)
 
 
 if __name__ == "__main__":

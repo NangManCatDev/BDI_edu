@@ -6,20 +6,27 @@ class StateManager:
 
     def __init__(self):
         self.state = {
-            "student_level": "beginner",
             "progress": 0,
-            "last_topic": None,
+            "level": "beginner",
+            "last_topic": None
         }
 
-    def load_initial_state(self) -> dict:
-        """최초 실행 시 불러올 상태"""
-        return self.state
-
-    def update_state(self, key: str, value):
-        """특정 상태를 갱신"""
+    def update(self, key, value):
         self.state[key] = value
+
+    def get(self, key, default=None):
+        return self.state.get(key, default)
+
+    def all(self):
         return self.state
 
-    def get_state(self) -> dict:
-        """현재 상태 조회"""
-        return self.state
+    # === last_topic 전용 헬퍼 ===
+    def set_last_topic(self, topic: str):
+        self.state["last_topic"] = topic
+
+    def get_last_topic(self):
+        return self.state.get("last_topic", None)
+
+    # === 별칭 ===
+    def show(self):
+        return self.all()
