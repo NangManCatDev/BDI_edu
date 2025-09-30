@@ -1,0 +1,13 @@
+dotenv
+openai
+
+fastapi
+uvicorn[standard]
+pylo
+numpy
+Pillow
+
+kanren==0.2.3
+unification==0.2.2
+z3
+networkx
