@@ -1,0 +1,6 @@
+INFO:     127.0.0.1:54526 - "GET /chat HTTP/1.1" 200 OK
+: person ((quote 이순신',) (quote 1545',) (quote 1598',) (quote 조선의) 수군 장군' )
+[RAW]
+(no output)
+neo> 알 수 없는 명령어입니다. :help 참고
+neo> 

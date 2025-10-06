@@ -246,13 +246,8 @@ def main():
         except Exception as e:
             print(f"❌ 예상치 못한 오류가 발생했습니다: {str(e)}")
             continue
-    
-    
-    
-from fastapi.responses import HTMLResponse
-from fastapi.staticfiles import StaticFiles
 
-# 정적 파일 제공 (CSS/JS 있으면 여기 넣음)
+from fastapi.responses import HTMLResponse
 
 @app.get("/chat", response_class=HTMLResponse)
 def chat_page():
@@ -376,51 +371,18 @@ def chat_page():
                 color: #666;
                 font-style: italic;
             }
-            .debug-panel {
-                background: #f8f9fa;
-                border-top: 2px solid #dee2e6;
-                padding: 15px;
-                max-height: 200px;
-                overflow-y: auto;
-                font-family: 'Courier New', monospace;
-                font-size: 12px;
-                line-height: 1.4;
-            }
-            .debug-panel h4 {
-                margin: 0 0 10px 0;
-                color: #495057;
-                font-size: 14px;
-                font-weight: bold;
-            }
-            .debug-log {
-                background: #000;
-                color: #00ff00;
-                padding: 10px;
-                border-radius: 5px;
-                margin-bottom: 10px;
-                white-space: pre-wrap;
-                word-wrap: break-word;
-                height: 300px;
-                overflow-y: auto;
-            }
-            .debug-toggle {
-                background: #6c757d;
+            .debug-sidebar-header {
+                background: #495057;
                 color: white;
-                border: none;
-                padding: 5px 10px;
-                border-radius: 3px;
-                cursor: pointer;
-                font-size: 12px;
-                margin-bottom: 10px;
-            }
-            .debug-toggle:hover {
-                background: #5a6268;
+                padding: 10px;
+                text-align: center;
+                font-weight: bold;
             }
             .debug-info {
                 display: grid;
                 grid-template-columns: 1fr;
                 gap: 8px;
-                margin-bottom: 10px;
+                margin: 10px;
             }
             .debug-item {
                 background: #e9ecef;
@@ -431,13 +393,6 @@ def chat_page():
             }
             .debug-item strong {
                 color: #495057;
-            }
-            .debug-sidebar-header {
-                background: #495057;
-                color: white;
-                padding: 10px;
-                text-align: center;
-                font-weight: bold;
             }
         </style>
     </head>
@@ -463,10 +418,6 @@ def chat_page():
                         <strong>KB 상태:</strong> <span id="kb-status">-</span>
                     </div>
                 </div>
-                
-                <div class="debug-log" id="debug-log">
-                    디버그 로그가 여기에 표시됩니다...
-                </div>
             </div>
             
             <div class="main-content">
@@ -491,7 +442,6 @@ def chat_page():
         </div>
 
         <script>
-            // 전역 함수 선언
             function sendMessage() {
                 console.log("sendMessage 함수 호출됨");
                 
@@ -511,13 +461,13 @@ def chat_page():
                 
                 console.log("sendMessage 처리 시작:", message);
                 
-                // 간단한 처리
+                // 비동기 처리
                 handleMessage(message);
             }
             
             async function handleMessage(message) {
                 console.log("handleMessage 시작:", message);
-
+                
                 // 사용자 메시지 표시
                 addMessage(message, "user");
                 const userInput = document.getElementById("user-input");
@@ -573,166 +523,10 @@ def chat_page():
                     });
                 }
             });
-            
-            // 전역 함수로 선언
-            function sendMessage() {
-                console.log("sendMessage 함수 호출됨");
-                
-                if (!userInput) {
-                    console.error("userInput이 정의되지 않았습니다!");
-                    return;
-                }
-                
-                const message = userInput.value.trim();
-                console.log("입력된 메시지:", message);
-                
-                if (!message) {
-                    console.log("메시지가 비어있습니다.");
-                    return;
-                }
-                
-                console.log("sendMessage 처리 시작:", message);
-                
-                // 비동기 처리
-                handleMessage(message);
-            }
-            
-            async function handleMessage(message) {
-                // 디버깅 시작
-                startDebugging();
-                addDebugLog("🚀 BDI 시스템 시작");
-                addDebugLog(`📝 사용자 입력: "${message}"`);
-                
-                // UI 상태 변경
-                if (sendBtn) {
-                    sendBtn.disabled = true;
-                    sendBtn.textContent = "전송중...";
-                }
-                if (loading) {
-                    loading.style.display = "block";
-                }
-                if (systemStatus) {
-                    systemStatus.textContent = "처리 중...";
-                }
-
-                // 사용자 메시지 표시
-                addMessage(message, "user");
-                if (userInput) {
-                    userInput.value = "";
-                }
-                
-                try {
-                    addDebugLog("🔄 서버에 요청 전송 중...");
-                    startTime = Date.now();
-
-                // 서버에 전송
-                    const response = await fetch("/ask", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({ 
-                            text: message,
-                            user_id: "web_user"
-                        })
-                    });
-                    
-                    const data = await response.json();
-                    const endTime = Date.now();
-                    const processingTimeMs = endTime - startTime;
-                    
-                    addDebugLog(`⏱️ 처리 시간: ${processingTimeMs}ms`);
-                    if (processingTime) {
-                        processingTime.textContent = `${processingTimeMs}ms`;
-                    }
-                    
-                    if (data.success) {
-                        addDebugLog("✅ 서버 응답 성공");
-                        
-                        // BDI 플로우 정보 표시
-                        if (data.data) {
-                            const bdiData = data.data;
-                            addDebugLog(`🎯 의도 분류: ${bdiData.intention || 'N/A'}`);
-                            addDebugLog(`🔍 정제된 입력: ${bdiData.refined_input || 'N/A'}`);
-                            
-                            if (bdiData.result) {
-                                addDebugLog(`📊 결과 타입: ${bdiData.result.type || 'N/A'}`);
-                                if (bdiData.result.query) {
-                                    addDebugLog(`🔍 KQML 쿼리: ${bdiData.result.query}`);
-                                }
-                            }
-                            
-                            // 상태 업데이트
-                            if (intentionType) {
-                                intentionType.textContent = bdiData.intention || 'N/A';
-                            }
-                            if (kbStatus) {
-                                kbStatus.textContent = "활성";
-                            }
-                        }
-                        
-                        // 성공 응답 표시
-                        const botMessage = data.data["final_answer"] || "답변을 생성했습니다.";
-                        addMessage(botMessage, "bot");
-                        addDebugLog(`💬 최종 답변: "${botMessage}"`);
-                        
-                    } else {
-                        addDebugLog(`❌ 서버 오류: ${data.error}`);
-                        addMessage("오류: " + data.error, "error");
-                    }
-                    
-                } catch (error) {
-                    addDebugLog(`💥 네트워크 오류: ${error.message}`);
-                    addMessage("네트워크 오류가 발생했습니다.", "error");
-                } finally {
-                    // UI 상태 복원
-                    if (sendBtn) {
-                        sendBtn.disabled = false;
-                        sendBtn.textContent = "전송";
-                    }
-                    if (loading) {
-                        loading.style.display = "none";
-                    }
-                    if (systemStatus) {
-                        systemStatus.textContent = "대기 중";
-                    }
-                    addDebugLog("🏁 BDI 시스템 완료");
-                }
-            }
-            
-            function addMessage(text, type) {
-                const messageDiv = document.createElement("div");
-                messageDiv.className = `message ${type}`;
-                messageDiv.textContent = text;
-                chatBox.appendChild(messageDiv);
-                chatBox.scrollTop = chatBox.scrollHeight;
-            }
-            
-            // 디버깅 함수들
-            function startDebugging() {
-                debugLogs = [];
-                if (debugLog) {
-                    debugLog.textContent = "디버깅 시작...\n";
-                }
-                console.log("디버깅 시작");
-            }
-            
-            function addDebugLog(message) {
-                if (!debugLog) {
-                    console.log("디버그 로그 추가 실패: debugLog 요소를 찾을 수 없습니다");
-                    return;
-                }
-                
-                const timestamp = new Date().toLocaleTimeString();
-                const logEntry = `[${timestamp}] ${message}`;
-                debugLogs.push(logEntry);
-                debugLog.textContent = debugLogs.join('\n');
-                debugLog.scrollTop = debugLog.scrollHeight;
-                console.log("디버그 로그 추가:", message);
-            }
         </script>
     </body>
     </html>
     """
-
 
 if __name__ == "__main__":
     main()
