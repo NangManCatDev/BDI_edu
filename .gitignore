@@ -40,6 +40,5 @@ models/
 .DS_Store
 Thumbs.db
 
-neo/
 bdi-key.pem
 private/

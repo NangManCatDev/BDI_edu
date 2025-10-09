@@ -1,3 +1,5 @@
+# 최종수정 2025-10-06, 21:13
+
 # --- Python 3.10+ 호환성 패치 ---
 import collections, collections.abc
 for name in ["Hashable","Iterable","Iterator","Mapping","MutableMapping"]:
