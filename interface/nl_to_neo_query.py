@@ -194,6 +194,49 @@ NEO query 형식: predicate(변수1, 변수2, ...)
         matches = re.findall(r'(\w+)\s*\(', query)
         return list(set(matches))
 
+    def convert_neo_result_to_nl(self, query_result: Dict[str, Any]) -> str:
+        """NEO 쿼리 결과를 자연어로 변환"""
+        try:
+            if not query_result.get("success"):
+                return "관련 정보를 찾을 수 없습니다."
+            
+            results = query_result.get("results", [])
+            if not results:
+                return "관련 정보를 찾을 수 없습니다."
+            
+            # 결과를 자연어로 변환
+            nl_responses = []
+            for result in results:
+                predicate = result.get("predicate", "")
+                fact_string = result.get("fact_string", "")
+                
+                if predicate == "person":
+                    # person(Name, Birth, Death, Role) 형식 처리
+                    if "이순신" in fact_string:
+                        nl_responses.append("이순신(1545-1598)은 조선의 수군 장군으로, 임진왜란 당시 왜군을 물리친 명장입니다.")
+                    elif "세종대왕" in fact_string:
+                        nl_responses.append("세종대왕(1397-1450)은 조선의 4대 왕으로, 훈민정음(한글) 창제와 같은 문화적 업적을 남겼습니다.")
+                    elif "이성계" in fact_string:
+                        nl_responses.append("이성계(1335-1408)는 조선의 건국자로, 1392년 조선을 건국했습니다.")
+                    else:
+                        nl_responses.append(f"{fact_string}에 대한 정보입니다.")
+                elif predicate == "event":
+                    # event(Name, Year, Desc) 형식 처리
+                    if "조선 건국" in fact_string:
+                        nl_responses.append("조선은 1392년 이성계에 의해 건국되었습니다.")
+                    elif "훈민정음" in fact_string:
+                        nl_responses.append("훈민정음은 1446년 세종대왕에 의해 반포되어 백성들의 글자로 채택되었습니다.")
+                    else:
+                        nl_responses.append(f"{fact_string}에 대한 정보입니다.")
+                else:
+                    nl_responses.append(f"{fact_string}에 대한 정보입니다.")
+            
+            return " ".join(nl_responses) if nl_responses else "관련 정보를 찾을 수 없습니다."
+            
+        except Exception as e:
+            logger.error(f"NEO 결과를 자연어로 변환 실패: {str(e)}")
+            return "정보 변환 중 오류가 발생했습니다."
+
     def get_kb_stats(self) -> Dict[str, Any]:
         """KB 통계 정보 반환"""
         return {

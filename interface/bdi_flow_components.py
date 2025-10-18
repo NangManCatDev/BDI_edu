@@ -206,9 +206,9 @@ class QAAgent:
                             q = conv["query"]
                             exec_res = neo_kb_loader.get_engine().query_simple(q)
                             if exec_res:
-                                nl = neo_rag.convert_neo_result_to_nl({"success": True, "results": exec_res, "query": q}, question)
-                                if nl and nl.get("success"):
-                                    return {"type": "answer", "content": nl.get("answer", ""), "query": q, "results": exec_res}
+                                nl = neo_rag.convert_neo_result_to_nl({"success": True, "results": exec_res, "query": q})
+                                if nl and nl != "관련 정보를 찾을 수 없습니다.":
+                                    return {"type": "answer", "content": nl, "query": q, "results": exec_res}
                 except Exception as fe:
                     logger.warning(f"NEO RAG 폴백 실패: {str(fe)}")
                 return {"type": "error", "message": "해당 질문에 대한 답변을 찾을 수 없습니다."}
@@ -411,7 +411,7 @@ class StaticTextResponder:
         return {"type": "static_text", "content": self.snippets["도움말"]}
 
 class QuizGenerator:
-    """간단 퀴즈 생성기 (QA 결과를 기반으로 단답형 퀴즈 생성)"""
+    """LLM 기반 퀴즈 생성기 (동적으로 객관식 퀴즈 생성)"""
     
     def __init__(self, qa_agent: QAAgent):
         self.qa_agent = qa_agent
@@ -419,6 +419,8 @@ class QuizGenerator:
             "이순신", "세종", "세종대왕", "임진왜란", "이성계", "정도전",
             "김구", "안중근", "윤봉길", "동학농민운동", "3.1운동", "광복절"
         ]
+        from .kqml2nl import get_connector
+        self.llm = get_connector()
     
     def _to_info_prompt(self, refined_input: str) -> str:
         # "문제", "퀴즈", "내줘" 등을 정보 요청 형태로 치환
@@ -437,6 +439,65 @@ class QuizGenerator:
         tmp = tmp.replace("알려줘 를 알려줘", "알려줘")
         return tmp
     
+    def _generate_quiz_with_llm(self, topic: str, context_info: str) -> Dict[str, Any]:
+        """LLM을 사용하여 동적으로 퀴즈 생성"""
+        try:
+            system_prompt = """당신은 한국사 교육 전문가입니다. 주어진 주제에 대해 고등학교 수준의 객관식 퀴즈를 생성해주세요.
+
+퀴즈 생성 규칙:
+1. 문제는 명확하고 구체적으로 작성
+2. 5개의 선택지를 제공 (정답 1개 + 오답 4개)
+3. 오답은 그럴듯하지만 틀린 내용으로 구성
+4. 정답은 정확한 역사적 사실에 기반
+5. 한국어로 작성
+
+출력 형식:
+문제: [질문 내용]
+① [선택지 1]
+② [선택지 2]  
+③ [선택지 3]
+④ [선택지 4]
+⑤ [선택지 5]
+정답: [정답 번호] - [정답 설명]"""
+
+            user_prompt = f"""주제: {topic}
+
+관련 정보:
+{context_info}
+
+위 정보를 바탕으로 객관식 퀴즈를 생성해주세요."""
+
+            response = self.llm.ask(user_prompt, system_prompt)
+            
+            # 응답 파싱
+            lines = response.strip().split('\n')
+            question = ""
+            options = []
+            answer = ""
+            
+            for line in lines:
+                line = line.strip()
+                if line.startswith('문제:'):
+                    question = line.replace('문제:', '').strip()
+                elif line.startswith('①') or line.startswith('②') or line.startswith('③') or line.startswith('④') or line.startswith('⑤'):
+                    options.append(line)
+                elif line.startswith('정답:'):
+                    answer = line.replace('정답:', '').strip()
+            
+            if question and options and answer:
+                return {
+                    "success": True,
+                    "question": question,
+                    "options": options,
+                    "answer": answer
+                }
+            else:
+                return {"success": False, "error": "퀴즈 파싱 실패"}
+                
+        except Exception as e:
+            logger.error(f"LLM 퀴즈 생성 실패: {str(e)}")
+            return {"success": False, "error": str(e)}
+
     def process(self, refined_input: str, context: Optional[str] = None) -> Dict[str, Any]:
         try:
             # 컨텍스트에서 핵심 엔티티 추출
@@ -446,29 +507,52 @@ class QuizGenerator:
                     if ent in context:
                         focus = ent
                         break
+            
             info_prompt = self._to_info_prompt(refined_input)
             # 엔티티가 있으면 정보 요청을 해당 엔티티로 보정
             if focus and focus not in info_prompt:
                 info_prompt = f"{focus}에 대해 알려줘"
+            
+            # 관련 정보 수집
             qa = self.qa_agent.process(info_prompt, context=context)
+            context_info = ""
             if qa.get("type") == "answer" and qa.get("content"):
-                answer = qa["content"].strip()
-                # 더 자연스러운 퀴즈 질문 생성
-                if (focus or "이순신" in refined_input):
-                    question = "이순신은 누구인가요?"
-                elif (focus == "세종" or "세종" in refined_input or "세종대왕" in refined_input):
-                    question = "세종대왕은 누구인가요?"
-                elif (focus == "임진왜란" or "임진왜란" in refined_input):
-                    question = "임진왜란은 언제 일어났나요?"
-                else:
-                    # 일반적인 경우
-                    question = f"{refined_input.replace('문제', '').replace('퀴즈', '').replace('내줘', '').strip()}에 대해 설명해주세요."
+                context_info = qa["content"].strip()
+            
+            # 주제 결정
+            if focus:
+                topic = focus
+            elif "이순신" in refined_input:
+                topic = "이순신"
+            elif "세종" in refined_input or "세종대왕" in refined_input:
+                topic = "세종대왕"
+            elif "임진왜란" in refined_input:
+                topic = "임진왜란"
+            else:
+                topic = refined_input.replace("문제", "").replace("퀴즈", "").replace("내줘", "").strip()
+            
+            # LLM으로 퀴즈 생성
+            quiz_result = self._generate_quiz_with_llm(topic, context_info)
+            
+            if quiz_result.get("success"):
+                # 퀴즈 내용을 문자열로 포맷팅
+                content = f"문제: {quiz_result['question']}\n"
+                for option in quiz_result['options']:
+                    content += f"{option}\n"
+                content += f"정답: {quiz_result['answer']}"
                 
-                content = f"문제: {question}\n정답(모범답안): {answer}"
-                return {"type": "quiz", "content": content}
-            fallback_q = f"다음 질문에 답하세요: {info_prompt}"
-            return {"type": "quiz", "content": f"문제: {fallback_q}\n정답(모범답안): 관련 정보를 찾지 못했습니다."}
+                return {
+                    "type": "quiz", 
+                    "content": content,
+                    "quiz_data": quiz_result  # 구조화된 데이터도 함께 반환
+                }
+            else:
+                # 폴백: 기본 퀴즈 생성
+                fallback_q = f"다음 질문에 답하세요: {info_prompt}"
+                return {"type": "quiz", "content": f"문제: {fallback_q}\n정답(모범답안): 관련 정보를 찾지 못했습니다."}
+                
         except Exception as e:
+            logger.error(f"퀴즈 생성 중 오류: {str(e)}")
             return {"type": "error", "message": f"퀴즈 생성 중 오류: {str(e)}"}
 
 class BDIFlowOrchestrator:

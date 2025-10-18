@@ -1,2 +1,2 @@
 
-NOEXIST : Not defined symbol : event ((quote 광복절',) (quote 1945',) (quote 광복절은) 일본으로부터 해방된 날' )
+NOEXIST : Not defined symbol : person (X1, X2, X3, X4 ), X1 = "이순신" 

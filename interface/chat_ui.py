@@ -498,6 +498,105 @@ def chat_page():
                 font-size: 12px;
                 line-height: 1.4;
             }
+            
+            /* 퀴즈 스타일링 */
+            .quiz-container {
+                background: white;
+                border: 2px solid #e0e0e0;
+                border-radius: 8px;
+                padding: 20px;
+                margin: 10px 0;
+                box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+                max-width: 100%;
+            }
+            
+            .quiz-title {
+                font-weight: bold;
+                font-size: 16px;
+                color: #333;
+                margin-bottom: 15px;
+                border-bottom: 2px solid #007bff;
+                padding-bottom: 8px;
+            }
+            
+            .quiz-question {
+                color: #0066cc;
+                font-size: 15px;
+                font-weight: 500;
+                margin-bottom: 15px;
+                line-height: 1.4;
+            }
+            
+            .quiz-options {
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                gap: 8px;
+                margin-bottom: 15px;
+            }
+            
+            .quiz-option {
+                display: flex;
+                align-items: center;
+                padding: 8px 12px;
+                background: #f8f9fa;
+                border: 1px solid #dee2e6;
+                border-radius: 4px;
+                font-size: 14px;
+                transition: background-color 0.2s;
+            }
+            
+            .quiz-option:hover {
+                background: #e9ecef;
+            }
+            
+            .quiz-option-number {
+                background: #007bff;
+                color: white;
+                border-radius: 50%;
+                width: 24px;
+                height: 24px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 12px;
+                font-weight: bold;
+                margin-right: 10px;
+                flex-shrink: 0;
+            }
+            
+            .quiz-answer {
+                background: #d4edda;
+                border: 1px solid #c3e6cb;
+                border-radius: 4px;
+                padding: 10px;
+                margin-top: 10px;
+                font-size: 14px;
+            }
+            
+            .quiz-answer-label {
+                font-weight: bold;
+                color: #155724;
+                margin-bottom: 5px;
+            }
+            
+            .quiz-next-btn {
+                background: #dc3545;
+                color: white;
+                border: none;
+                border-radius: 50%;
+                width: 50px;
+                height: 50px;
+                font-size: 12px;
+                font-weight: bold;
+                cursor: pointer;
+                float: right;
+                margin-top: 10px;
+                transition: background-color 0.3s;
+            }
+            
+            .quiz-next-btn:hover {
+                background: #c82333;
+            }
         </style>
     </head>
     <body>
@@ -580,6 +679,90 @@ def chat_page():
                 messageDiv.textContent = text;
                 chatBox.appendChild(messageDiv);
                 chatBox.scrollTop = chatBox.scrollHeight;
+            }
+            
+            // 퀴즈 HTML 생성 함수
+            function createQuizHTML(quizContent, quizData) {
+                var question = '';
+                var answer = '';
+                var options = [];
+                
+                // 구조화된 퀴즈 데이터가 있으면 사용
+                if (quizData && quizData.success) {
+                    question = quizData.question || '';
+                    answer = quizData.answer || '';
+                    options = quizData.options || [];
+                } else {
+                    // 기존 방식으로 파싱
+                    var lines = quizContent.split('\\n');
+                    
+                    for (var i = 0; i < lines.length; i++) {
+                        var line = lines[i].trim();
+                        if (line.startsWith('문제:')) {
+                            question = line.replace('문제:', '').trim();
+                        } else if (line.startsWith('정답')) {
+                            answer = line.replace(/정답.*?:/, '').trim();
+                        } else if (line.match(/^[①②③④⑤⑥⑦⑧⑨⑩]/)) {
+                            options.push(line);
+                        }
+                    }
+                }
+                
+                // 기본 옵션 생성 (만약 파싱된 옵션이 없다면)
+                if (options.length === 0) {
+                    options = [
+                        '① 출력 기능',
+                        '② 판단 기능', 
+                        '③ 기억 기능',
+                        '④ 연산 기능',
+                        '⑤ 입력 기능'
+                    ];
+                }
+                
+                var quizHTML = '<div class="quiz-container">';
+                quizHTML += '<div class="quiz-title">문제 1</div>';
+                quizHTML += '<div class="quiz-question">' + (question || '다음 중 올바른 답을 선택하세요.') + '</div>';
+                quizHTML += '<div class="quiz-options">';
+                
+                for (var j = 0; j < options.length; j++) {
+                    var optionText = options[j].replace(/^[①②③④⑤⑥⑦⑧⑨⑩]\\s*/, '');
+                    var optionNumber = j + 1;
+                    quizHTML += '<div class="quiz-option">';
+                    quizHTML += '<div class="quiz-option-number">' + optionNumber + '</div>';
+                    quizHTML += '<span>' + optionText + '</span>';
+                    quizHTML += '</div>';
+                }
+                
+                quizHTML += '</div>';
+                
+                if (answer) {
+                    quizHTML += '<div class="quiz-answer">';
+                    quizHTML += '<div class="quiz-answer-label">정답:</div>';
+                    quizHTML += '<div>' + answer + '</div>';
+                    quizHTML += '</div>';
+                }
+                
+                quizHTML += '<button class="quiz-next-btn" onclick="nextQuiz()">다음</button>';
+                quizHTML += '</div>';
+                
+                return quizHTML;
+            }
+            
+            // 퀴즈 메시지 추가 함수
+            function addQuizMessage(quizContent, quizData) {
+                var chatBox = document.getElementById("chat-box");
+                if (!chatBox) return;
+                
+                var messageDiv = document.createElement("div");
+                messageDiv.className = "message bot";
+                messageDiv.innerHTML = createQuizHTML(quizContent, quizData);
+                chatBox.appendChild(messageDiv);
+                chatBox.scrollTop = chatBox.scrollHeight;
+            }
+            
+            // 다음 퀴즈 함수
+            function nextQuiz() {
+                addMessage("다음 문제를 요청하시면 새로운 퀴즈를 생성해드리겠습니다!", "bot");
             }
             
             // 전송 함수
@@ -699,8 +882,16 @@ def chat_page():
                         }
                         
                         var botMessage = data.data["final_answer"] || "답변을 생성했습니다.";
-                        addMessage(botMessage, "bot");
-                        addDebugLog("최종 답변: " + botMessage);
+                        
+                        // 퀴즈 타입인지 확인
+                        if (bdi.result && bdi.result.type === "quiz") {
+                            var quizData = bdi.result.quiz_data || null;
+                            addQuizMessage(botMessage, quizData);
+                            addDebugLog("퀴즈 렌더링: " + botMessage);
+                        } else {
+                            addMessage(botMessage, "bot");
+                            addDebugLog("최종 답변: " + botMessage);
+                        }
                     } else {
                         addMessage("오류: " + data.error, "error");
                         addDebugLog("서버 오류: " + data.error);
